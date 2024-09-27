@@ -137,14 +137,67 @@ check_mismatched_ocpbugs() {
     rm "$TEMP_FILE"
 }
 
+# Functionality 4: Search previous Y-streams for a specific bug
+search_previous_ystreams_for_bug() {
+    # Prompt the user to input the bug link
+    read -p "Enter the full OCPBUGS link (e.g., https://issues.redhat.com/browse/OCPBUGS-12345): " BUG_LINK
+
+    # Extract the bug ID from the link (e.g., OCPBUGS-12345)
+    BUG_ID=$(echo "$BUG_LINK" | grep -oP 'OCPBUGS-\d+')
+
+    # Prompt the user to input the current Y-stream release number (e.g., for 4.15, they will enter 15)
+    read -p "Enter the current Y-stream release number, e.g., for 4.15, enter 15: " CURRENT_Y_STREAM
+
+    # Check for valid input (current Y-stream should be an integer greater than or equal to 4)
+    if ! [[ "$CURRENT_Y_STREAM" =~ ^[0-9]+$ ]] || [[ "$CURRENT_Y_STREAM" -lt 4 ]]; then
+        echo "Invalid Y-stream number. Please enter a valid number (e.g., 15 for version 4.15)."
+        return
+    fi
+
+    # Loop through the previous 3 Y-streams (e.g., 4.14, 4.13, and 4.12)
+    for (( i=1; i<=3; i++ )); do
+        PREV_Y_STREAM=$((CURRENT_Y_STREAM - i))
+
+        # Construct the release notes URL dynamically for each previous Y-stream
+        RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$PREV_Y_STREAM/release_notes/ocp-4-$PREV_Y_STREAM-release-notes.html"
+
+        # Temporary file to store fetched release notes
+        TEMP_FILE="/tmp/ocp_release_notes_4_$PREV_Y_STREAM.html"
+
+        # Download the release notes for the previous Y-stream
+        curl -s "$RELEASE_NOTES_URL" -o "$TEMP_FILE"
+
+        # Check if the download was successful
+        if [[ ! -s "$TEMP_FILE" ]]; then
+            echo "Failed to download release notes for 4.$PREV_Y_STREAM or the file is empty."
+            continue
+        fi
+
+        # Search for the bug ID in the downloaded release notes
+        if grep -q "$BUG_ID" "$TEMP_FILE"; then
+            echo "$BUG_ID was found in release notes for 4.$PREV_Y_STREAM"
+        else
+            echo "$BUG_ID was not found in release notes for 4.$PREV_Y_STREAM"
+        fi
+
+        # Cleanup
+        rm "$TEMP_FILE"
+    done
+}
+
 # Main menu function
 main_menu() {
     echo "Select an option using the number keys:"
-    select option in "Check the Jira status of doc'd known issues in a previous Y release" "Check a Y release for duplicate OCPBUGS in the release notes" "Check links for mismatches between the Jira ID specified in the link's human readable text vs the Jira ID targeted in the related link"; do
+    select option in \
+        "Check the Jira status of doc'd known issues in a previous Y release" \
+        "Check a Y release for duplicate OCPBUGS in the release notes" \
+        "Check links for mismatches between the Jira ID specified in the link's human-readable text vs the Jira ID targeted in the link" \
+        "Search previous Y-streams for a specific bug"; do
         case $REPLY in
             1) known_issues_checker; break ;;
             2) check_duplicate_ocpbugs; break ;;
             3) check_mismatched_ocpbugs; break ;;
+            4) search_previous_ystreams_for_bug; break ;;
             *) echo "Invalid option. Try again." ;;
         esac
     done
