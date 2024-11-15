@@ -15,8 +15,8 @@ known_issues_checker() {
     # Ask the user to input the y-stream release number (e.g., for 4.15, they will enter 15)
 read -p "Enter the y-stream release number to check known issue bug statsus. For example, for 4.15, enter "15": " Y_STREAM
 
-# Construct the release notes URL dynamically based on user input
-RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.html#ocp-4-$Y_STREAM-known-issues_release-notes"
+    # Construct the release notes URL dynamically based on user input
+    RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
 
     # Temporary file to store fetched release notes
     TEMP_FILE="ocp_release_notes.html"
@@ -24,9 +24,8 @@ RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$Y_STREAM/rel
     # Download the release notes
     curl -s "$RELEASE_NOTES_URL" -o "$TEMP_FILE"
 
-    # Extract content of the "Known Issues" section
-    KNOWN_ISSUES=$(awk '/Known issues<\/h2>/, /Asynchronous errata updates<\/h2>/' "$TEMP_FILE")
-
+    KNOWN_ISSUES=$(awk '/== Known issues/ {flag=1} flag && /== Asynchronous errata updates/ {exit} flag' "$TEMP_FILE")
+    
     # Extract OCPBUGS links from the known issues section
     BUG_URLS=$(echo "$KNOWN_ISSUES" | grep -oP 'https://issues.redhat.com/browse/OCPBUGS-\d+' | uniq)
 
@@ -34,19 +33,19 @@ RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$Y_STREAM/rel
     echo "Checking known issue OCPBUGS statuses for 4.$Y_STREAM..."
 
     for bug_url in $BUG_URLS; do
-        # Extract the bug ID (e.g., OCPBUGS-12345)
-        BUG_ID=$(echo "$bug_url" | grep -oP 'OCPBUGS-\d+')
+            # Extract the bug ID (e.g., OCPBUGS-12345)
+            BUG_ID=$(echo "$bug_url" | grep -oP 'OCPBUGS-\d+')
 
-        # Fetch the bug status from Jira
-        BUG_STATUS=$(curl -sSL -H "Authorization: Bearer $JIRA_TOKEN" "$JIRA_API_BASE/$BUG_ID" | jq -r '.fields.status.name')
+            # Fetch the bug status from Jira
+            BUG_STATUS=$(curl -sSL -H "Authorization: Bearer $JIRA_TOKEN" "$JIRA_API_BASE/$BUG_ID" | jq -r '.fields.status.name')
 
-        # Report the bug if the status is not "Closed"
-        echo "$BUG_ID has status: $BUG_STATUS"
-        
-    done
+            # Report the bug if the status is not "Closed"
+            echo "$BUG_ID has status: $BUG_STATUS"
+            
+        done
 
-    # Cleanup
-    rm "$TEMP_FILE"
+        # Cleanup
+        rm "$TEMP_FILE"
 
 }
 
@@ -56,7 +55,7 @@ check_duplicate_ocpbugs() {
     read -p "Enter the y-stream release number, e.g., for 4.15, enter 15: " Y_STREAM
 
     # Construct the release notes URL dynamically based on user input
-    RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.html"
+    RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
 
     # Temporary file to store fetched release notes
     TEMP_FILE="ocp_release_notes.html"
@@ -94,7 +93,7 @@ check_mismatched_ocpbugs() {
     read -p "Enter the y-stream release number, e.g., for 4.15, enter 15: " Y_STREAM
 
     # Construct the release notes URL dynamically based on user input
-    RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.html"
+    RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
 
     # Temporary file to store fetched release notes
     TEMP_FILE="ocp_release_notes.html"
@@ -110,7 +109,7 @@ check_mismatched_ocpbugs() {
 
     # Extract OCPBUGS links and their human-readable text
     # This regex captures both the actual bug ID and the displayed bug ID
-    MISMATCHES=$(grep -oP '<a href="https://issues.redhat.com/browse/(OCPBUGS-\d+)"><strong>(OCPBUGS-\d+)</strong></a>' "$TEMP_FILE")
+    MISMATCHES=$(grep -oP 'link:https://issues.redhat.com/browse/OCPBUGS-\d+\[\*OCPBUGS-\d+\*\]' "$TEMP_FILE")
 
     # Initialize a flag for found mismatches
     FOUND_MISMATCHES=0
@@ -118,8 +117,9 @@ check_mismatched_ocpbugs() {
     # Process each mismatch line
     while read -r line; do
         # Extract the actual bug ID and the displayed bug ID
-        ACTUAL_BUG=$(echo "$line" | grep -oP 'https://issues.redhat.com/browse/(OCPBUGS-\d+)' | grep -oP 'OCPBUGS-\d+')
-        DISPLAYED_BUG=$(echo "$line" | grep -oP '<strong>(OCPBUGS-\d+)</strong>' | grep -oP 'OCPBUGS-\d+')
+        ACTUAL_BUG=$(echo "$line" | grep -oP 'link:https://issues.redhat.com/browse/OCPBUGS-\d+' | grep -oP 'OCPBUGS-\d+')
+        # Extract the displayed bug ID (inside the [* *] brackets)
+        DISPLAYED_BUG=$(echo "$line" | grep -oP '\[\*OCPBUGS-\d+\*\]' | grep -oP 'OCPBUGS-\d+')
 
         # Compare and report any mismatches
         if [[ "$ACTUAL_BUG" != "$DISPLAYED_BUG" ]]; then
@@ -159,7 +159,7 @@ search_previous_ystreams_for_bug() {
         PREV_Y_STREAM=$((CURRENT_Y_STREAM - i))
 
         # Construct the release notes URL dynamically for each previous Y-stream
-        RELEASE_NOTES_URL="https://docs.openshift.com/container-platform/4.$PREV_Y_STREAM/release_notes/ocp-4-$PREV_Y_STREAM-release-notes.html"
+        RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$PREV_Y_STREAM/release_notes/ocp-4-$PREV_Y_STREAM-release-notes.adoc"
 
         # Temporary file to store fetched release notes
         TEMP_FILE="/tmp/ocp_release_notes_4_$PREV_Y_STREAM.html"
