@@ -7,13 +7,13 @@ JIRA_API_BASE="https://issues.redhat.com/rest/api/2/issue"
 
 # Your Jira credentials (API token, or username:token)
 JIRA_TOKEN="$MY_TOKEN"
-#echo "My token is $JIRA_TOKEN"
 
 # Functionality 1: Known Issues Checker
 known_issues_checker() {
 
     # Ask the user to input the y-stream release number (e.g., for 4.15, they will enter 15)
-read -p "Enter the y-stream release number to check known issue bug statsus. For example, for 4.15, enter "15": " Y_STREAM
+read -p "Enter the y-stream release number to check known issue statsus. For example, for 4.15, enter "15": " Y_STREAM
+echo ""
 
     # Construct the release notes URL dynamically based on user input
     RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
@@ -53,6 +53,7 @@ read -p "Enter the y-stream release number to check known issue bug statsus. For
 check_duplicate_ocpbugs() {
     # Ask the user to input the y-stream release number (e.g., for 4.15, they will enter 15)
     read -p "Enter the y-stream release number, e.g., for 4.15, enter 15: " Y_STREAM
+    echo ""
 
     # Construct the release notes URL dynamically based on user input
     RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
@@ -79,6 +80,9 @@ check_duplicate_ocpbugs() {
     if [[ -n "$DUPLICATES" ]]; then
         echo "Duplicate OCPBUGS links found:"
         echo "$DUPLICATES"
+        echo ""
+        echo "NOTE: Often no action is required for duplicate bugs reported by this tool. Often bugs appear twice as part of the known issue --> fix announcements."
+        echo ""
     else
         echo "No duplicate OCPBUGS links found."
     fi
@@ -91,6 +95,7 @@ check_duplicate_ocpbugs() {
 check_mismatched_ocpbugs() {
     # Ask the user to input the y-stream release number (e.g., for 4.15, they will enter 15)
     read -p "Enter the y-stream release number, e.g., for 4.15, enter 15: " Y_STREAM
+    echo ""
 
     # Construct the release notes URL dynamically based on user input
     RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
@@ -147,6 +152,7 @@ search_previous_ystreams_for_bug() {
 
     # Prompt the user to input the current Y-stream release number (e.g., for 4.15, they will enter 15)
     read -p "Enter the current Y-stream release number, e.g., for 4.15, enter 15: " CURRENT_Y_STREAM
+    echo ""
 
     # Check for valid input (current Y-stream should be an integer greater than or equal to 4)
     if ! [[ "$CURRENT_Y_STREAM" =~ ^[0-9]+$ ]] || [[ "$CURRENT_Y_STREAM" -lt 4 ]]; then
@@ -185,23 +191,91 @@ search_previous_ystreams_for_bug() {
     done
 }
 
+# Functionality 5: Check TP tables for features that are GA for past three releases
+check_tp_tables() {
+
+    # Ask the user to input the y-stream release number (e.g., for 4.15, they will enter 15)
+    read -p "Enter the y-stream release to examine. For example, for 4.15, enter "15": " Y_STREAM
+    echo ""
+
+    RELEASE_NOTES_URL="https://raw.githubusercontent.com/openshift/openshift-docs/refs/heads/enterprise-4.$Y_STREAM/release_notes/ocp-4-$Y_STREAM-release-notes.adoc"
+
+    # Temporary file to store fetched release notes
+    TEMP_FILE="ocp_release_notes.html"
+
+    # Download the release notes
+    curl -s "$RELEASE_NOTES_URL" -o "$TEMP_FILE"
+
+    # Check if the download was successful
+     if [[ ! -s "$TEMP_FILE" ]]; then
+         echo "Failed to download release notes for 4.$Y_STREAM or the file is empty."
+         continue
+     fi
+
+    lines_array=()
+
+    # Read the file line by line into an array
+    while IFS= read -r line; do
+        lines_array+=("$line")
+    done < "$TEMP_FILE"
+
+    # Check for the pattern and report the line before it
+    for ((i = 2; i < ${#lines_array[@]}; i++)); do
+        if [[ ${lines_array[$i]} == "|General Availability" && \
+            ${lines_array[$i-1]} == "|General Availability" && \
+            ${lines_array[$i-2]} == "|General Availability" ]]; then
+        echo "Pattern found. If the following feature is GA for the past three releases, you should remove it from the Tech Preview status table:"
+        echo "${lines_array[$i-3]}"
+        fi
+    done
+
+    # Cleanup
+    rm "$TEMP_FILE"
+
+}
+
 # Main menu function
 main_menu() {
+    echo ""
+    echo "#################"
+    echo ""
     echo "Select an option using the number keys:"
     select option in \
-        "Check the Jira status of doc'd known issues in a previous Y release" \
+        "Check the Jira status of published known issues for a specific Y release" \
         "Check a Y release for duplicate OCPBUGS in the release notes" \
         "Check links for mismatches between the Jira ID specified in the link's human-readable text vs the Jira ID targeted in the link" \
-        "Search previous Y-streams for a specific bug"; do
+        "Search previous Y-streams for a specific bug" \
+        "Check Tech Preview status tables for features that are GA for 3 consecutive releases"; do
         case $REPLY in
             1) known_issues_checker; break ;;
             2) check_duplicate_ocpbugs; break ;;
             3) check_mismatched_ocpbugs; break ;;
             4) search_previous_ystreams_for_bug; break ;;
+            5) check_tp_tables; break ;;
             *) echo "Invalid option. Try again." ;;
+        esac
+    done
+    # Function to handle the flow after the main menu
+    while true; do
+        echo ""
+        read -p "Do you want to return to the menu or quit? (Enter 'm' to continue or 'q' to exit): " user_choice
+        case $user_choice in
+            m)
+                main_menu  # Restart the main menu
+                break
+                ;;
+            q)
+                echo "Exiting the tool. Goodbye!"
+                exit 0
+                ;;
+            *)
+                echo "Invalid input. Please enter 'm' or 'q'."
+                ;;
         esac
     done
 }
 
 # Run the main menu
 main_menu
+
+
