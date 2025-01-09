@@ -5,9 +5,6 @@
 # Jira API base URL
 JIRA_API_BASE="https://issues.redhat.com/rest/api/2/issue"
 
-# Your Jira credentials (API token, or username:token)
-JIRA_TOKEN="$MY_TOKEN"
-
 # Functionality 1: Known Issues Checker
 known_issues_checker() {
 
@@ -37,7 +34,7 @@ echo ""
             BUG_ID=$(echo "$bug_url" | grep -oP 'OCPBUGS-\d+')
 
             # Fetch the bug status from Jira
-            BUG_STATUS=$(curl -sSL -H "Authorization: Bearer $JIRA_TOKEN" "$JIRA_API_BASE/$BUG_ID" | jq -r '.fields.status.name')
+            BUG_STATUS=$(curl -sSL "$JIRA_API_BASE/$BUG_ID" | jq -r '.fields.status.name')
 
             # Report the bug if the status is not "Closed"
             echo "$BUG_ID has status: $BUG_STATUS"

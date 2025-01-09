@@ -8,30 +8,6 @@ To test the tool locally, complete these steps:
 
 1. Clone repo locally and ensure you have exectuable access for the script: `chmod +x rn-utility-tool.sh`
 
-2. Create a personal Jira token here: https://issues.redhat.com/secure/ViewProfile.jspa?selectedTab=com.atlassian.pats.pats-plugin:jira-user-personal-access-tokens
-
-3. Save the token in a `.env` file locally:
-    
-    ```bash
-    cat > .env <<EOF
-    MY_TOKEN=<REDACTED>
-    EOF
-    ```
-
-4. Export the token from the local environment:
-
-    ```bash
-    source .env
-    export MY_TOKEN
-    ```
-5. Run the script: `./rn-utility-tool.sh`
-
-**IMPORTANT** - Do not make your Jira token public, do not include in any commits to Github!
-
-# Running the tool
-
-1. For each shell session, load the environment variable containing your token: `source .env`
-
 2. Run the script: `./rn-utility-tool.sh`
 
 ## Functionality options when using the tool
