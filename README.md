@@ -2,17 +2,19 @@
 
 The aim of this tool is to automate some common tasks when creating and reviewing OCP release notes. This tool is currently in development. Feel free to open an issue or submit a PR.
 
-# Installing the tool
+This branch uses a container image.
 
-To test the tool locally, complete these steps:
+# Pulling and running the image
 
-1. Clone repo locally and ensure you have exectuable access for the script: `chmod +x rn-utility-tool.sh`
+1. `podman pull quay.io/rhn_support_rohennes/rn-utility-tool`
 
-2. Run the script: `./rn-utility-tool.sh`
+2. `podman run -d -p 5000:5000 --name rn-utility-tool rn-utility-tool:latest`
 
-## Functionality options when using the tool
+3. Open a browser at `http://localhost:5000/`
 
-1. **Check current status in Jira for known issues in a Y-stream**: Check known issues in set of Y-stream release notes and fetches the Jira status of each known issue.
+## Functionality options
+
+1. **Check Jira for known issues in a Y-stream**: Check known issues in set of Y-stream release notes and fetches the Jira status of each known issue.
 
 2. **Finds duplicate bugs in a release**: Check for duplicate OCPBUGS links in a Y-stream (may be good reason for duplicates but flags anyway).
 
