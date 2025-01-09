@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Release Notes Utility Tool</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Release Notes Utility Tool</h1>
+    <form id="toolForm">
+        <label for="option">Select Option:</label>
+        <select id="option" name="option" required>
+            <option value="1">Check Jira Status</option>
+            <option value="2">Check Duplicate OCPBUGS</option>
+            <option value="3">Check Link Mismatches</option>
+            <option value="4">Search for Specific Bug</option>
+            <option value="5">Check GA for 3 Releases</option>
+        </select>
+        <br>
+        <label for="y_stream">Y-Stream Release:</label>
+        <select id="y_stream" name="y_stream">
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+            <option value="18">18</option>
+        </select>
+        <br>
+        <div id="bug_url_input" style="display: none;">
+            <label for="bug_url">Enter Bug URL:</label>
+            <input type="text" id="bug_url" name="bug_url" placeholder="e.g., https://issues.redhat.com/browse/OCPBUGS-12345">
+        </div>
+        <br>
+        <button type="submit">Run Tool</button>
+    </form>
+    <pre id="output"></pre>
+
+    <script>
+        // Event listener for the option dropdown
+        document.getElementById("option").addEventListener("change", function() {
+            const selectedOption = this.value;
+            const bugUrlInput = document.getElementById("bug_url_input");
+
+            // Show the bug URL input box only if "Search for Specific Bug" (option 4) is selected
+            if (selectedOption === "4") {
+                bugUrlInput.style.display = "block";
+            } else {
+                bugUrlInput.style.display = "none";
+            }
+        });
+
+        document.getElementById("toolForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            // If the "Search for Specific Bug" option is selected, add the bug_id to the form data
+            const bugUrl = document.getElementById("bug_url").value;
+            
+            if (bugUrl && document.getElementById("option").value === "4") {
+                formData.append("bug_id", bugUrl);
+            }
+
+            const response = await fetch("/run-tool", {
+                method: "POST",
+                body: formData,
+            });
+            const data = await response.json();
+            document.getElementById("output").textContent = data.success
+                ? data.output
+                : `Error: ${data.error}`;
+        });
+    </script>
+</body>
+</html>
