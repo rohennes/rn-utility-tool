@@ -1,1 +1,15 @@
-.env
+# Virtual environment directories
+venv/
+.env/
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Other temporary or configuration files
+*.log
+*.sqlite3
+*.db
+*.bak
